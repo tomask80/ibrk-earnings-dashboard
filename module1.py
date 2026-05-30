@@ -278,3 +278,70 @@ class EarningsTradingDashboard:
         self.canvas.get_tk_widget().grid(row=0,column=0,sticky=(tk.E,tk.N,tk.W,tk.S))
         
         # 1.22.44
+    def log_message(self,message):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.status_text.insert(tk.END,f"[{timestamp}]{message}\n")
+        self.status_test.see(tk.END)
+        self.root.update_idletasks()
+        
+    def connect_ib(self):
+        try:
+            host = self.host_var.get()
+            port = int(self.port_var.get())
+            self.log_message(f"Connecting to IB at {host}:{port}")
+            
+            def connect_thread():
+                try:
+                    self.ib_app.connect(host,port,0)
+                    self.ib_app.run()
+                except Exception as e:
+                    self.log_message(f"Connection erro: {e}")
+            
+            thread = threading.Thread(target=connect_thread,daemon=True)
+            thread.start()
+            
+            for i in range(100):
+                if self.ib_app.connected:
+                    try:
+                        server_version = self.ib_app_serverVersion()
+                        if server_version is not None and server_version > 0:
+                            break
+                    except:
+                        pass
+                time.sleep(.1)
+                
+            if self.ib_app.connected:
+                try:
+                    server_version = self.ib_app.serverVersion()
+                    if server_version is not None and server_version > 0:
+                        self.connected = True
+                        self.connect_btn.config(state = 'disabled')
+                        self.disconnect_btn.config(state = 'normal')
+                        self.analyze_btn.config(state='normal')
+                        self.log_message(f"Successfully connected to IB Server Version: {server_version}")
+                    else:
+                        self.log_message("Connected, but server version unavaible")
+                except Exception as e:
+                    self.log_message(f"Connected to the server, but server version check failed: {e}")
+            else:
+                self.log_message("Failed to connect tp Interactive Brokers")
+                
+        except Exception as e:
+            self.log_message(f"Connection Erro: {e}")       
+                    
+                    
+    def disconnect_ib(self):
+        try:
+            self.ib_app.disconnect()
+            self.connect = False
+            self.connect_btn.config(state='normal')
+            self.disconnect_btn.config(state ='disabled')
+            self.analyze_btn.config(state='disable')
+            
+            self.clear_analysis_results()
+            
+            self.log_message('Disconnected from Interactive Brokers')
+        except Exception as e:
+            self.log_message(f"Disconnect Error: {e}")
+            
+    # 1:34.53
